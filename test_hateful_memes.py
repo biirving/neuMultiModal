@@ -6,7 +6,10 @@ from transformers import AutoModel
 import torchvision.transforms as transforms
 from torchvision.io import read_image
 from transformers import BeitFeatureExtractor, BeitForImageClassification
-
+import numpy as np
+from datasets import Features, ClassLabel, Array3D, Image
+from torchvision.io import read_image
+from transformers import AutoTokenizer, AutoModelForPreTraining
 
 import os
 os.environ["HF_ENDPOINT"] = "https://huggingface.co"
@@ -46,9 +49,7 @@ transforms.ToTensor()
 ])
 
 
-from transformers import AutoTokenizer, AutoModelForPreTraining
 model = AutoModelForPreTraining.from_pretrained("uclanlp/visualbert-vqa-coco-pre")
-
 
 
 image_0 = read_image(test_data['test'][0]['image'])
