@@ -88,7 +88,7 @@ class CustomTrainer(Trainer):
         plt.xlabel('Timestep')
         plt.ylabel('BCE Loss')
         plt.title('Loss')
-        plt.savefig('loss_' + str(epoch) + '.png')
+        plt.savefig('./loss/loss_' + str(epoch) + '.png')
         plt.close()
 
     def train(self, batch_size):
