@@ -62,8 +62,6 @@ class classificationVILT(torch.nn.Module):
         logits = self.classification(to_feed)
         return logits
 
-
-
 class CustomTrainer(Trainer):
     def __init__(self, epochs, lr, train_data, test_data, model, processor):
         self.epochs = epochs
@@ -189,5 +187,5 @@ class CustomTrainer(Trainer):
 processor = ViltProcessor.from_pretrained("dandelin/vilt-b32-mlm")
 vilt = ViltModel.from_pretrained("dandelin/vilt-b32-mlm")
 model =  classificationVILT(vilt).to(device)
-train = CustomTrainer(3, 1e-4, train_data, test_data, model, processor)
+train = CustomTrainer(1, 1e-3, train_data, test_data, model, processor)
 train.train(1)
