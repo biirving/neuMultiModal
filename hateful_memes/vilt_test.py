@@ -3,7 +3,6 @@ from datasets import load_dataset
 from transformers import AutoModel
 import torchvision.transforms as transforms
 from torchvision.io import read_image
-from transformers import BeitFeatureExtractor, BeitForImageClassification, Trainer
 import numpy as np
 from datasets import Features, ClassLabel, Array3D, Image
 import torch
@@ -144,10 +143,6 @@ class CustomTrainer(Trainer):
             print('epoch: ', counter)
             counter += 1
             print('training set accuracy: ', total_acc/train_index)
-            # the average matthews correlation coefficient?
-            #print('matthews correlation coefficient', total_mc/train_index)
-                # the total matthews correlation coefficient
-            #print('total matthews correlation coefficient', total_mc)
             print('loss total: ', sum(training_loss))
             print('\n')
             training_loss_over_epochs.append(training_loss)
