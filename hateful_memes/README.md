@@ -23,3 +23,9 @@ Dataset for this folder:
 ```
 
 Peformance:
+
+vilt
+batch size: 8
+epochs: 1
+train accuracy: 65.07%
+test accuracy: 99.20%
