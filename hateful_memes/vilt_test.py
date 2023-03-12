@@ -15,6 +15,9 @@ from transformers import ViltProcessor, ViltModel
 from PIL import Image
 import requests
 from tqdm import tqdm
+from transformers import Trainer
+import math
+
 
 os.environ["HF_ENDPOINT"] = "https://huggingface.co"
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -63,13 +66,14 @@ class classificationVILT(torch.nn.Module):
         return logits
 
 class CustomTrainer(Trainer):
-    def __init__(self, epochs, lr, train_data, test_data, model, processor):
+    def __init__(self, epochs, lr, train_data, test_data, model, processor, num_classes):
         self.epochs = epochs
         self.lr = lr
         self.train_data = train_data
         self.test_data = test_data
         self.model = model
         self.processor = processor
+        self.num_classes = num_classes
         
     def compute_loss(self, model, inputs, return_outputs=False):
         labels = inputs.get("labels")
@@ -98,20 +102,21 @@ class CustomTrainer(Trainer):
         accuracy = Accuracy(task='multiclass', num_classes=2).to(device)
         mcc = MatthewsCorrCoef(task='binary').to(device)
         counter = 0
+        accuracy = Accuracy("binary").to(device)
 
         training_loss_over_epochs = []
         for epoch in range(self.epochs):
             training_loss = []
             total_acc = 0
-            num_train_steps = train_data['train'].num_rows
+            num_train_steps = math.floor(train_data['train'].num_rows/batch_size) * batch_size
             runtime = 0
             value = 0
-            for train_index in tqdm(range(num_train_steps)):
+            for train_index in tqdm(range(0, num_train_steps, batch_size)):
                 model.zero_grad()
-                image = train_data['train'][train_index]['image']
-                text = train_data['train'][train_index]['text']
+                image = train_data['train'][train_index:train_index+batch_size]['image']
+                text = train_data['train'][train_index:train_index+batch_size]['text']
                 try:
-                    inputs = processor(image, text, return_tensors="pt").to(device)
+                    inputs = processor(image, text, padding = True, return_tensors="pt").to(device)
                 except ValueError:
                     value += 1
                     continue
@@ -120,27 +125,26 @@ class CustomTrainer(Trainer):
                 except RuntimeError:
                     runtime += 1
                     continue
-                if(train_data['train'][train_index]['label'] == 0):
-                    truth = torch.tensor([0, train_data['train'][train_index]['label']], dtype=float)
-                else: 
-                    truth = torch.tensor([1, train_data['train'][train_index]['label']], dtype=float)
-                loss = loss_fct(out.float().to(device), truth.view(1, 2).float().to(device))
+                truth = torch.nn.functional.one_hot(torch.tensor(train_data['train'][train_index:train_index+batch_size]['label']), num_classes=self.num_classes)
+                loss = loss_fct(out.float().to(device), truth.view(batch_size, 2).float().to(device))
                 training_loss.append(loss.item())
-                maximums = torch.argmax(out)
-                truth_max = torch.argmax(truth)
-                # here is the accuracy measurement
-                #acc = accuracy(maximums, truth_max)
-                total_acc += (maximums == truth_max)
+                maximums = torch.argmax(out, dim = 1)
+                truth_max = torch.argmax(truth, dim = 1)
+                accuracy.update(maximums.to(device), truth_max.to(device))
                 adam.zero_grad()
                 loss.backward()
                 adam.step()
+
+            acc = accuracy.compute()
+            print("Accuracy:", acc)
             print('runtime errors: ', runtime)
             print('value errors: ', value)
             self.plot(np.array(training_loss), epoch)
             print('\n')
             print('epoch: ', counter)
             counter += 1
-            print('training set accuracy: ', total_acc/train_index)
+            acc = accuracy.compute()
+            print("Accuracy:", acc)
             print('loss total: ', sum(training_loss))
             print('\n')
             training_loss_over_epochs.append(training_loss)
@@ -170,10 +174,7 @@ class CustomTrainer(Trainer):
                 except RuntimeError:
                     runtime += 1
                     continue
-                if(train_data['train'][train_index]['label'] == 0):
-                    truth = torch.tensor([0, train_data['train'][train_index]['label']], dtype=float)
-                else: 
-                    truth = torch.tensor([1, train_data['train'][train_index]['label']], dtype=float)
+                truth = torch.nn.functional.one_hot(torch.tensor(train_data['train'][train_index]['label']), num_classes=self.num_classes)
                 maximums = torch.argmax(out)
                 truth_max = torch.argmax(truth)
                 total_acc += (maximums == truth_max)
@@ -187,5 +188,5 @@ class CustomTrainer(Trainer):
 processor = ViltProcessor.from_pretrained("dandelin/vilt-b32-mlm")
 vilt = ViltModel.from_pretrained("dandelin/vilt-b32-mlm")
 model =  classificationVILT(vilt).to(device)
-train = CustomTrainer(1, 1e-3, train_data, test_data, model, processor)
-train.train(1)
+train = CustomTrainer(1, 1e-3, train_data, test_data, model, processor, 2)
+train.train(8)
