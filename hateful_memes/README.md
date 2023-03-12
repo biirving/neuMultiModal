@@ -27,7 +27,7 @@ Peformance:
 vilt \
 batch size: 8 \
 epochs: 1 \
-training loss total: 597.1128127449192
+training loss total: 597.1128127449192 \
 train accuracy: 65.07% \
 test accuracy: 99.20% 
 
