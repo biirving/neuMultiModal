@@ -24,7 +24,7 @@ Dataset for this folder:
 
 Peformance:
 
-vilt
+vilt /n
 batch size: 8
 epochs: 1
 train accuracy: 65.07%
