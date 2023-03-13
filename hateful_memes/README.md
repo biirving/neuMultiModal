@@ -25,9 +25,9 @@ Dataset for this folder:
 Peformance:
 
 vilt \
-batch size: 8 \
-epochs: 1 \
+batch size: 32 \
+epochs: 5 \
 training loss total: 597.1128127449192 \
 train accuracy: 65.07% \
-test accuracy: 48.84% 
+test accuracy: 53.48% 
 
