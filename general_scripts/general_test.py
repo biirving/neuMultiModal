@@ -23,50 +23,34 @@ os.environ["HF_ENDPOINT"] = "https://huggingface.co"
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 """
-@article{DBLP:journals/corr/abs-2005-04790,
-  author    = {Douwe Kiela and
-               Hamed Firooz and
-               Aravind Mohan and
-               Vedanuj Goswami and
-               Amanpreet Singh and
-               Pratik Ringshia and
-               Davide Testuggine},
-  title     = {The Hateful Memes Challenge: Detecting Hate Speech in Multimodal Memes},
-  journal   = {CoRR},
-  volume    = {abs/2005.04790},
-  year      = {2020},
-  url       = {https://arxiv.org/abs/2005.04790},
-  eprinttype = {arXiv},
-  eprint    = {2005.04790},
-  timestamp = {Thu, 14 May 2020 16:56:02 +0200},
-  biburl    = {https://dblp.org/rec/journals/corr/abs-2005-04790.bib},
-  bibsource = {dblp computer science bibliography, https://dblp.org}
-}
+Cite the dataset that you mean to use
 """
-train_data = load_dataset("Multimodal-Fatima/Hatefulmemes_train")
-test_data = load_dataset("Multimodal-Fatima/Hatefulmemes_test")
+# Fill these in with the desired dataset
+train_data = None
+test_data = None
 
 
 
 """
-Here is the code for adding a classification layer to the VilBert model
+Here is the code for adding a classification layer to the said model
 """
-class classificationVILT(torch.nn.Module):
-    def __init__(self, bert_model):
+class classificationModel(torch.nn.Module):
+    def __init__(self, base_model, output_size, num_classes):
         super().__init__()
-        self.bert = bert_model
-        self.projection = nn.Linear(768, 2)
+        self.base_model = base_model
+        self.projection = nn.Linear(output_size, num_classes)
         self.classification = nn.Softmax(dim=1)
     
+    # change this function to meet the needs of your specific model
     def forward(self, input_ids, token_type_ids, attention_mask, pixel_values, pixel_mask):
-        outputs = self.bert(input_ids, token_type_ids, attention_mask, pixel_values, pixel_mask)
+        outputs = self.base_model(input_ids, token_type_ids, attention_mask, pixel_values, pixel_mask)
         pooled_output = outputs[1]
         to_feed = self.projection(pooled_output)
         logits = self.classification(to_feed)
         return logits
 
 class CustomTrainer(Trainer):
-    def __init__(self, epochs, lr, train_data, test_data, model, processor, num_classes):
+    def __init__(self, epochs, lr, train_data, test_data, model, processor, num_classes, loss_func, optimizer, lr_scheduler):
         self.epochs = epochs
         self.lr = lr
         self.train_data = train_data
@@ -74,7 +58,11 @@ class CustomTrainer(Trainer):
         self.model = model
         self.processor = processor
         self.num_classes = num_classes
+        self.loss_func = loss_func
+        self.optimizer = optimizer
+        self.lr_scheduler = lr_scheduler
         
+
     def compute_loss(self, model, inputs, return_outputs=False):
         labels = inputs.get("labels")
         # forward pass
@@ -96,11 +84,13 @@ class CustomTrainer(Trainer):
         plt.close()
 
     def train(self, batch_size):
-        adam = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-        cosine = torch.optim.lr_scheduler.CosineAnnealingLR(adam, self.epochs)
-        loss_fct = nn.BCELoss()
-        accuracy = Accuracy(task='multiclass', num_classes=2).to(device)
-        mcc = MatthewsCorrCoef(task='binary').to(device)
+
+        # subject to change
+        # Use optimizer, and learning rate scheduler of your choice.
+        optimizer = self.optimizer(self.model.parameters(), lr=self.lr)
+        cosine = self.lr_scheduler(optimizer, self.epochs)
+        loss_fct = self.loss_func
+        accuracy = Accuracy(task='multiclass', num_classes=self.num_classes).to(device)
         counter = 0
 
         training_loss_over_epochs = []
@@ -126,14 +116,14 @@ class CustomTrainer(Trainer):
                     runtime += 1
                     continue
                 truth = torch.nn.functional.one_hot(torch.tensor(train_data['train'][train_index:train_index+batch_size]['label']), num_classes=self.num_classes)
-                loss = loss_fct(out.float().to(device), truth.view(batch_size, 2).float().to(device))
+                loss = loss_fct(out.float().to(device), truth.view(batch_size, self.num_classes).float().to(device))
                 training_loss.append(loss.item())
                 maximums = torch.argmax(out, dim = 1)
                 truth_max = torch.argmax(truth, dim = 1)
                 accuracy.update(maximums.to(device), truth_max.to(device))
-                adam.zero_grad()
+                optimizer.zero_grad()
                 loss.backward()
-                adam.step()
+                optimizer.step()
 
             acc = accuracy.compute()
             print("Accuracy:", acc)
@@ -184,8 +174,20 @@ class CustomTrainer(Trainer):
         return training_loss_over_epochs, accuracy
 
 
-processor = ViltProcessor.from_pretrained("dandelin/vilt-b32-mlm")
-vilt = ViltModel.from_pretrained("dandelin/vilt-b32-mlm")
-model =  classificationVILT(vilt).to(device)
-train = CustomTrainer(1, 1e-3, train_data, test_data, model, processor, 2)
-train.train(8)
+
+# Fill these in with the desired processor, base_model, and other arguments
+processor = None
+base_model = None
+output_layer_size = None
+model =  classificationModel(base_model, None, output_layer_size)
+
+# For the custom trainer, fill these in
+optimizer = None
+lr_scheduler = None
+loss_function = None
+epochs = None
+lr = None
+num_classes = None
+batch_size = None
+train = CustomTrainer(epochs, lr, train_data, test_data, model, processor, num_classes, loss_function, optimizer, lr_scheduler)
+train.train(batch_size)
