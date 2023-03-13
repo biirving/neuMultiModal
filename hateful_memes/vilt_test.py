@@ -150,7 +150,6 @@ class CustomTrainer(Trainer):
             training_loss_over_epochs.append(training_loss)
             #exponential.step()
             cosine.step()
-
             model.eval()
 
         with torch.no_grad():
@@ -187,5 +186,5 @@ class CustomTrainer(Trainer):
 processor = ViltProcessor.from_pretrained("dandelin/vilt-b32-mlm")
 vilt = ViltModel.from_pretrained("dandelin/vilt-b32-mlm")
 model =  classificationVILT(vilt).to(device)
-train = CustomTrainer(1, 1e-3, train_data, test_data, model, processor, 2)
-train.train(8)
+train = CustomTrainer(5, 1e-4, train_data, test_data, model, processor, 2)
+train.train(32)
